@@ -1,0 +1,90 @@
+from tkinter import * 
+import tkinter.ttk as ttk 
+import tkinter.messagebox as tkMessageBox import sqlite3 import bs4,requests 
+from matplotlib import pyplot as plt 
+ 
+ 
+record=[] 
+country = [] total_case = [] total_death = [] total_active = [] total_rec = [] def Database():     global conn, cursor #creating student database 
+conn = sqlite3.connect("coronavirus.db") 
+    cursor = conn.cursor() 
+ 
+    cursor.execute( 
+"CREATE TABLE IF NOT EXISTS  COVID(RECORD TEXT,COUNTRY TEXT , 
+CASES TEXT, DEATH TEXT, RECOVERED TEXT, ACTIVE TEXT)") 
+ 
+def DisplayForm(): 
+    display_screen = Tk()     display_screen.geometry("900x400")     display_screen.title("COVID-19") 
+    global tree 
+    global SEARCH     SEARCH = StringVar() 
+ 
+    TopViewForm = Frame(display_screen, width=600, bd=1, relief=SOLID) 
+    TopViewForm.pack(side=TOP, fill=X) 
+    LFrom = Frame(display_screen, width="350",bg="#ff9900") 
+    LFrom.pack(side=LEFT, fill=Y) 
+    LeftViewForm = Frame(display_screen, width=500,bg="#ff9900") 
+    LeftViewForm.pack(side=LEFT, fill=Y) 
+    MidViewForm = Frame(display_screen, width=600) 
+    MidViewForm.pack(side=RIGHT) 
+    lbl_text = Label(TopViewForm, text="Coronavirus DashBoard", font=('verdana', 18), width=600,bg="orange",fg="black")     lbl_text.pack(fill=X) 
+    Label(LFrom, text="DATA SCRAP", font=("Arial", 12),bg='#ff9900').pack(side=TOP) 
+    Button(LFrom, text="Start", font=("Arial", 10, "bold"), command=Datascrap).pack(side=TOP, padx=10, pady=5, fill=X) 
+    Label(LFrom, text="GRAPH", font=("Arial", 12),bg='#ff9900').pack(side=TOP) 
+    Button(LFrom, text="Active", font=("Arial", 10, "bold"), command=Active_graph).pack(side=TOP, padx=10, pady=5, fill=X)     Button(LFrom, text="Death", font=("Arial", 10, "bold"), command=Death_graph).pack(side=TOP, padx=10, pady=5, fill=X)     Button(LFrom, text="Recovered", font=("Arial", 10, "bold"), command=Recovered_graph).pack(side=TOP, padx=10, pady=5, fill=X) 
+    Button(LFrom,text="Total",font=("Arial", 10, 
+"bold"),command=Total_graph).pack(side=TOP, padx=10,pady=5, fill=X) 
+    lbl_txtsearch = Label(LeftViewForm, text="Enter name to Search", font=('verdana', 
+10),bg="#ff9900")     lbl_txtsearch.pack() 
+    search = Entry(LeftViewForm, textvariable=SEARCH, font=('verdana', 15), width=10)     search.pack(side=TOP, padx=10, fill=X) 
+    btn_search = Button(LeftViewForm, text="Search", command=SearchRecord)     btn_search.pack(side=TOP, padx=10, pady=10, fill=X) 
+    btn_view = Button(LeftViewForm, text="View All", command=DisplayData)     btn_view.pack(side=TOP, padx=10, pady=10, fill=X) 
+    btn_reset = Button(LeftViewForm, text="RESET", command=Reset) 
+    btn_reset.pack(side=TOP, padx=10, pady=10, fill=X)     scrollbarx = Scrollbar(MidViewForm, orient=HORIZONTAL)     scrollbary = Scrollbar(MidViewForm, orient=VERTICAL) 
+    tree = ttk.Treeview(MidViewForm,columns=("Record", "Country", "Total Cases", "Total Deaths","Total Recovered","Active Cases"), 
+                        selectmode="extended", height=100, yscrollcommand=scrollbary.set, xscrollcommand=scrollbarx.set)     scrollbary.config(command=tree.yview)     scrollbary.pack(side=RIGHT, fill=Y)     scrollbarx.config(command=tree.xview)     scrollbarx.pack(side=BOTTOM, fill=X)     tree.heading('Record', text="Record", anchor=W)     tree.heading('Country', text="Country", anchor=W)     tree.heading('Total Cases', text="Total Cases", anchor=W)     tree.heading('Total Deaths', text="Total Deaths", anchor=W)     tree.heading('Total Recovered', text="Total Recovered", anchor=W)     tree.heading('Active Cases', text="Active Cases", anchor=W)     tree.column('#0', stretch=NO, minwidth=0, width=0)     tree.column('#1', stretch=NO, minwidth=0, width=150)     tree.column('#2', stretch=NO, minwidth=0, width=150)     tree.column('#3', stretch=NO, minwidth=0, width=150)     tree.column('#4', stretch=NO, minwidth=0, width=150)     tree.column('#5', stretch=NO, minwidth=0, width=150)     tree.pack() 
+ 
+def Datascrap():     try: 
+        url = 'https://www.worldometers.info/coronavirus/#countries' 
+ 
+        response = requests.get(url) 
+        data = bs4.BeautifulSoup(response.content, 'html.parser') 
+        tkMessageBox.showinfo("Message", "Data Scrap successfully")         table = data.find('table').find_all('tr')[8:-8]         i=1         for col in table:             value = [i.text for i in col]             record.append(str(i))             country.append(value[3].strip())             total_case.append(value[5].strip())             total_death.append(value[9].strip())             total_active.append(value[17].strip())             total_rec.append(value[13].strip())             i+=1         else: 
+            finaldata=zip(record,country,total_case,total_death,total_rec,total_active)             Database() 
+            conn.executemany('INSERT INTO COVID 
+(RECORD,COUNTRY,CASES,DEATH,RECOVERED,ACTIVE) \ 
+                      VALUES (?,?,?,?,?,?)',finaldata);             conn.commit()             DisplayData()             conn.close()     except Exception as e: 
+        tkMessageBox.showinfo("Message", "Pleas Check Your Internet Connection") 
+ 
+def SearchRecord():     Database()     if SEARCH.get() != "" and SEARCH.get().isalpha() : 
+        tree.delete(*tree.get_children()) 
+        cursor = conn.execute("SELECT * FROM COVID WHERE COUNTRY LIKE ?", ('%' 
++ str(SEARCH.get()) + '%',))         fetch = cursor.fetchall()         for data in fetch:             tree.insert('', 'end', values=(data))         cursor.close()         conn.close()     else: 
+        tkMessageBox.showinfo("Message", "Pleas Enter Valid Data..!") 
+ 
+def DisplayData(): 
+    Database() 
+    tree.delete(*tree.get_children()) 
+    cursor = conn.execute("SELECT * FROM COVID") 
+    fetch = cursor.fetchall()     for data in fetch:         tree.insert('', 'end', values=(data))     cursor.close()     conn.close() def Reset():     tree.delete(*tree.get_children())     Database() 
+    cursor = conn.execute("DROP TABLE COVID") 
+    conn.commit()     cursor.close() 
+    conn.close() 
+ 
+def Active_graph(): 
+    plt.plot(country[1:11], [i.replace(",",'')for i in total_active][1:11])     plt.ylabel('Country') 
+    plt.xlabel('Active cases')     plt.title('COVID ACTIVE CASES')     plt.legend('Active') 
+    plt.show() 
+ 
+def Death_graph(): 
+    plt.bar(country[1:11], [i.replace(",", '') for i in total_death][1:11])     plt.ylabel('Country') 
+    plt.xlabel('Death cases')     plt.title('COVID ACTIVE CASES') 
+    plt.legend('Death') 
+    plt.show() 
+ 
+def Recovered_graph(): 
+    plt.bar(country[1:11], [i.replace(",", '') for i in total_rec][1:11])     plt.ylabel('Country')     plt.xlabel('Recovered cases')     plt.title('COVID ACTIVE CASES') 
+    plt.legend('Recovered')     plt.show() 
+ 
+def Total_graph(): 
+    plt.scatter(country[1:11], [i.replace(",", '') for i in total_case][1:11])     plt.ylabel('Country') 
+    plt.xlabel('Total cases')     plt.title('COVID ACTIVE CASES')     plt.legend('Total cases')     plt.show() DisplayForm() if __name__=='__main__':  mainloop() 
